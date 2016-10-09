@@ -71,6 +71,8 @@ public class ShortestPath implements PathFinder<Path>
     private ShortestPathPredicate predicate;
     private DataMonitor dataMonitor;
 
+    private int bfsCount;
+
     public interface ShortestPathPredicate {
         boolean test( Path path );
     }
@@ -137,6 +139,7 @@ public class ShortestPath implements PathFinder<Path>
 
     private Iterable<Path> internalPaths( Node start, Node end, boolean stopAsap )
     {
+        this.bfsCount = 0;
         lastMetadata = new Metadata();
         if ( start.equals( end ) )
         {
@@ -159,6 +162,7 @@ public class ShortestPath implements PathFinder<Path>
             goOneStep( endData, startData, hits, startData, stopAsap );
         }
         Collection<Hit> least = hits.least();
+        System.out.printf("Count: %d\n", this.bfsCount);
         return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
 
@@ -415,6 +419,7 @@ public class ShortestPath implements PathFinder<Path>
                     prepareNextLevel();
                 }
             }
+            ShortestPath.this.bfsCount ++;
             return this.nextRelationships.hasNext() ? this.nextRelationships.next() : null;
         }
     }
