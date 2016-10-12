@@ -120,7 +120,7 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
-        if (this.landmarks == null) readLandmarks("landmarks.txt");
+        if (this.landmarks == null) readLandmarks("landmark-matrix.txt");
     }
 
     private void readLandmarks(String filename) {
@@ -446,12 +446,10 @@ public class ShortestPath implements PathFinder<Path>
                 boolean isOutOfBounds = false;
                 for (int i = 0; i < ShortestPath.this.numLandmarks; i ++) {
                     if (this.currentDepth + ShortestPath.this.lowerBound[i] > ShortestPath.this.upperBound[i]) {
-                        System.out.println("pruned");
                         isOutOfBounds = true;
                         break;
                     }
                 }
-                if (isOutOfBounds) continue;
 
                 if ( filterNextLevelNodes( result ) != null && isOutOfBounds == false)
                 {
