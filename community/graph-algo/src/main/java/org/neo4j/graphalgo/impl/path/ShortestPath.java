@@ -76,14 +76,15 @@ public class ShortestPath implements PathFinder<Path>
     private ShortestPathPredicate predicate;
     private DataMonitor dataMonitor;
 
+    private int bfsCount;
+
     static private int[][] landmarks = null;
-    static private int numVertices;
-    static private int numLandmarks;
-    private int[] upperBound;
-    private int[] lowerBound;
+    static private int numV;
+    static private int numL;
+    private int lowerBound;
+    private int upperBound;
     private int startId;
     private int endId;
-    private int bfsCount;
 
     public interface ShortestPathPredicate {
         boolean test( Path path );
@@ -124,62 +125,54 @@ public class ShortestPath implements PathFinder<Path>
         if (this.landmarks == null) readLandmarks("landmark-matrix.txt");
     }
 
-    private void readLandmarks(String filename) {
-        ArrayList<ArrayList<Integer>> landmarksArrayList = new ArrayList<ArrayList<Integer>>();
+    private void readLandmarks( String filename ) {
+        ArrayList<ArrayList<Integer>> landmarkMatrix = new ArrayList<ArrayList<Integer>>();
         try {
-            BufferedReader landmarkReader = new BufferedReader(
+            BufferedReader br = new BufferedReader(
                     new InputStreamReader(
                         new FileInputStream(filename)));
             String line;
             while (true) {
-                line = landmarkReader.readLine();
+                line = br.readLine();
                 if (line == null) break;
 
                 Scanner scanner = new Scanner(line);
-                ArrayList<Integer> currentLandmark = new ArrayList<Integer>();
-                while (scanner.hasNextInt()) currentLandmark.add(scanner.nextInt());
-                landmarksArrayList.add(currentLandmark);
+                ArrayList<Integer> row = new ArrayList<Integer>();
+                while (scanner.hasNextInt()) row.add(scanner.nextInt());
+                landmarkMatrix.add(row);
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
 
-        this.numVertices = landmarksArrayList.size();
-        if (this.numVertices == 0) return;
-        this.numLandmarks = landmarksArrayList.get(0).size();
-        this.landmarks = new int[this.numVertices][this.numLandmarks];
-        for (int i = 0; i < this.numVertices; i ++) {
-            ArrayList<Integer> currentLandmark = landmarksArrayList.get(i);
-            for (int j = 0; j < this.numLandmarks; j ++)
-                this.landmarks[i][j] = currentLandmark.get(j);
+        this.numV = landmarkMatrix.size();
+        if (this.numV == 0) return;
+        this.numL = landmarkMatrix.get(0).size();
+        this.landmarks = new int[this.numV][this.numL];
+        for (int i = 0; i < this.numV; i ++) {
+            ArrayList<Integer> row = landmarkMatrix.get(i);
+            for (int j = 0; j < this.numL; j ++)
+                this.landmarks[i][j] = row.get(j);
         }
-        System.out.println("Landmarks Loaded");
+        System.out.printf("Landmarks Loaded\n");
     }
 
-    private void computeUpperBounds( int start ) {
-        if (this.landmarks == null) return;
-        int end = start == this.startId ? this.endId : this.startId;
-
-        this.upperBound = new int[this.numLandmarks];
-        for (int i = 0; i < this.numLandmarks; i ++) 
-            if (this.landmarks[start][i] >= 0 && this.landmarks[end][i] >= 0) {
-                this.upperBound[i] = this.landmarks[start][i] + this.landmarks[end][i];
-            }
-            else this.upperBound[i] = -1;
-
+    private void computeUpperBound() {
+        this.upperBound = this.numV;
+        for (int i = 0; i < this.numL; i ++)
+            if (this.landmarks[this.startId][i] >= 0 && this.landmarks[this.endId][i] >= 0)
+                this.upperBound = Math.min(this.upperBound,
+                        this.landmarks[this.startId][i] + this.landmarks[this.endId][i]);
+        if (this.upperBound == this.numV) this.upperBound = -1;
     }
 
-    private void computeLowerBounds( int start ) {
-        if (this.landmarks == null) return;
-        int end = start == this.startId ? this.endId : this.startId;
-
-        this.lowerBound = new int[this.numLandmarks];
-        for (int i = 0; i < this.numLandmarks; i ++) 
-            if (this.landmarks[start][i] >= 0 && this.landmarks[end][i] >= 0) {
-                this.lowerBound[i] = Math.abs(this.landmarks[start][i] - this.landmarks[end][i]);
-            }
-            else this.upperBound[i] = -1;
+    private void computeLowerBound( int curId, int curStartId ) {
+        int curEndId = curStartId == this.startId ? this.endId : this.startId;
+        this.lowerBound = -1;
+        for (int i = 0; i < this.numL; i ++)
+            this.lowerBound = Math.max(this.lowerBound,
+                    Math.abs(this.landmarks[curId][i] - this.landmarks[curEndId][i]));
     }
 
     @Override
@@ -211,9 +204,9 @@ public class ShortestPath implements PathFinder<Path>
     private Iterable<Path> internalPaths( Node start, Node end, boolean stopAsap )
     {
         this.bfsCount = 0;
-        int startId = (int)start.getProperty("id", -1);
+        this.startId = (int)start.getProperty("id", -1);
         this.endId = (int)end.getProperty("id", -1);
-        this.computeUpperBounds( startId );
+        this.computeUpperBound();
 
         lastMetadata = new Metadata();
         if ( start.equals( end ) )
@@ -450,15 +443,11 @@ public class ShortestPath implements PathFinder<Path>
                 Node result = nextRel.getOtherNode( this.lastPath.endNode() );
 
                 int resultId = (int)result.getProperty("id", -1);
-                ShortestPath.this.computeLowerBounds(resultId); 
-                boolean isOutOfBounds = false;
-                for (int i = 0; i < ShortestPath.this.numLandmarks; i ++) 
-                    if (ShortestPath.this.lowerBound[i] >= 0 && ShortestPath.this.upperBound[i] >= 0) {
-                        if (this.currentDepth + ShortestPath.this.lowerBound[i] > ShortestPath.this.upperBound[i]) {
-                            isOutOfBounds = true;
-                            break;
-                        }
-                    }
+                int startId = (int)this.startNode.getProperty("id", -1);
+                ShortestPath.this.computeLowerBound(resultId, startId);
+                boolean isOutOfBounds = ShortestPath.this.lowerBound >= 0 &&
+                    ShortestPath.this.upperBound >= 0 &&
+                    (this.currentDepth + ShortestPath.this.lowerBound > ShortestPath.this.upperBound);
 
                 if ( filterNextLevelNodes( result ) != null && isOutOfBounds == false)
                 {
@@ -492,8 +481,8 @@ public class ShortestPath implements PathFinder<Path>
                 return null;
             }
             boolean hasComeTooFarEmptyHanded =
-                this.sharedFrozenDepth.value != NULL
-                && this.sharedCurrentDepth.value > this.sharedFrozenDepth.value && !this.haveFoundSomething;
+                    this.sharedFrozenDepth.value != NULL
+                            && this.sharedCurrentDepth.value > this.sharedFrozenDepth.value && !this.haveFoundSomething;
             if ( hasComeTooFarEmptyHanded )
             {
                 return null;
@@ -721,7 +710,7 @@ public class ShortestPath implements PathFinder<Path>
         for ( long rel : levelData.relsToHere )
         {
             set.add( new PathData( connectingNode, new LinkedList<Relationship>( Arrays.asList( graphDb
-                                .getRelationshipById( rel ) ) ) ) );
+                    .getRelationshipById( rel ) ) ) ) );
             if ( stopAsap )
                 break;
         }
@@ -739,10 +728,10 @@ public class ShortestPath implements PathFinder<Path>
                 {
                     // ...may split into several paths
                     LinkedList<Relationship> rels = ++counter == otherLevelData.relsToHere.length ?
-                        // This is a little optimization which reduces number of
-                        // lists being copied
-                        entry.rels
-                        : new LinkedList<Relationship>( entry.rels );
+                    // This is a little optimization which reduces number of
+                    // lists being copied
+                            entry.rels
+                            : new LinkedList<Relationship>( entry.rels );
                     rels.addFirst( graphDb.getRelationshipById( rel ) );
                     nextSet.add( new PathData( otherNode, rels ) );
                     if ( stopAsap )
