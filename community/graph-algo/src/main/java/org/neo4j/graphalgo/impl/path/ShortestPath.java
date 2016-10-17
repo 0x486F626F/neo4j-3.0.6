@@ -19,6 +19,10 @@
  */
 package org.neo4j.graphalgo.impl.path;
 
+import java.io.BufferedReader;  
+import java.io.FileInputStream;  
+import java.io.InputStreamReader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +33,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.impl.util.PathImpl;
@@ -74,6 +79,14 @@ public class ShortestPath implements PathFinder<Path>
     private int numFetchVertex;
     private int numFetchEdge;
 
+    static private int[][] landmarks = null;
+    static private int numV;
+    static private int numL;
+    private int lowerBound;
+    private int upperBound;
+    private int startId;
+    private int endId;
+
     public interface ShortestPathPredicate {
         boolean test( Path path );
     }
@@ -110,6 +123,57 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
+        if (this.landmarks == null) readLandmarks("landmark-matrix.txt");
+    }
+
+    private void readLandmarks( String filename ) {
+        ArrayList<ArrayList<Integer>> landmarkMatrix = new ArrayList<ArrayList<Integer>>();
+        try {
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                        new FileInputStream(filename)));
+            String line;
+            while (true) {
+                line = br.readLine();
+                if (line == null) break;
+
+                Scanner scanner = new Scanner(line);
+                ArrayList<Integer> row = new ArrayList<Integer>();
+                while (scanner.hasNextInt()) row.add(scanner.nextInt());
+                landmarkMatrix.add(row);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        this.numV = landmarkMatrix.size();
+        if (this.numV == 0) return;
+        this.numL = landmarkMatrix.get(0).size();
+        this.landmarks = new int[this.numV][this.numL];
+        for (int i = 0; i < this.numV; i ++) {
+            ArrayList<Integer> row = landmarkMatrix.get(i);
+            for (int j = 0; j < this.numL; j ++)
+                this.landmarks[i][j] = row.get(j);
+        }
+        System.out.printf("Landmarks Loaded\n");
+    }
+
+    private void computeUpperBound() {
+        this.upperBound = this.numV;
+        for (int i = 0; i < this.numL; i ++)
+            if (this.landmarks[this.startId][i] >= 0 && this.landmarks[this.endId][i] >= 0)
+                this.upperBound = Math.min(this.upperBound,
+                        this.landmarks[this.startId][i] + this.landmarks[this.endId][i]);
+        if (this.upperBound == this.numV) this.upperBound = -1;
+    }
+
+    private void computeLowerBound( int curId, int curStartId ) {
+        int curEndId = curStartId == this.startId ? this.endId : this.startId;
+        this.lowerBound = -1;
+        for (int i = 0; i < this.numL; i ++)
+            this.lowerBound = Math.max(this.lowerBound,
+                    Math.abs(this.landmarks[curId][i] - this.landmarks[curEndId][i]));
     }
 
     @Override
@@ -143,6 +207,10 @@ public class ShortestPath implements PathFinder<Path>
         long startTime = System.currentTimeMillis();
         this.numFetchVertex = 0;
         this.numFetchEdge = 0;
+        this.startId = (int)start.getProperty("id", -1);
+        this.endId = (int)end.getProperty("id", -1);
+        this.computeUpperBound();
+
         lastMetadata = new Metadata();
         if ( start.equals( end ) )
         {
@@ -381,7 +449,14 @@ public class ShortestPath implements PathFinder<Path>
 
                 Node result = nextRel.getOtherNode( this.lastPath.endNode() );
 
-                if ( filterNextLevelNodes( result ) != null )
+                int resultId = (int)result.getProperty("id", -1);
+                int startId = (int)this.startNode.getProperty("id", -1);
+                ShortestPath.this.computeLowerBound(resultId, startId);
+                boolean isOutOfBounds = ShortestPath.this.lowerBound >= 0 &&
+                    ShortestPath.this.upperBound >= 0 &&
+                    (this.currentDepth + ShortestPath.this.lowerBound > ShortestPath.this.upperBound);
+
+                if ( filterNextLevelNodes( result ) != null && isOutOfBounds == false)
                 {
                     lastMetadata.rels++;
 
