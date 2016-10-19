@@ -140,6 +140,7 @@ public class ShortestPath implements PathFinder<Path>
 
     private Iterable<Path> internalPaths( Node start, Node end, boolean stopAsap )
     {
+        long startTime = System.currentTimeMillis();
         this.numFetchVertex = 0;
         this.numFetchEdge = 0;
         lastMetadata = new Metadata();
@@ -164,7 +165,10 @@ public class ShortestPath implements PathFinder<Path>
             goOneStep( endData, startData, hits, startData, stopAsap );
         }
         Collection<Hit> least = hits.least();
-        System.out.printf("Count: %d %d\n", this.numFetchVertex, this.numFetchEdge);
+        long endTime = System.currentTimeMillis();
+        System.out.printf("Count: %d %d %d\n", 
+                this.numFetchVertex, this.numFetchEdge,
+                endTime - startTime);
         return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
 
