@@ -234,8 +234,9 @@ public class ShortestPath implements PathFinder<Path>
         }
         Collection<Hit> least = hits.least();
         long endTime = System.currentTimeMillis();
-        System.out.printf("Count: %d %d %d\n", 
+        System.out.printf("Count: %d %d %d %d\n", 
                 this.numFetchVertex, this.numFetchEdge,
+                sharedFrozenDepth.value,
                 endTime - startTime);
         return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
@@ -326,9 +327,14 @@ public class ShortestPath implements PathFinder<Path>
                     {   // This side found a hit, but wait for the other side to complete its current depth
                         // to see if it finds a shorter path. (i.e. stop this side and freeze the depth).
                         // but only if the other side has not stopped, otherwise we might miss shorter paths
-                        if ( otherSide.stop )
-                        { return; }
-                        directionData.stop = true;
+                        if (otherSide.getCurrentDepth() > directionData.getCurrentDepth()) {
+                            if (directionData.stop) { return; }
+                            otherSide.stop = true;
+                        }
+                        else {
+                            if ( otherSide.stop ) { return; }
+                            directionData.stop = true;
+                        }
                     }
                 }
                 else
@@ -417,6 +423,10 @@ public class ShortestPath implements PathFinder<Path>
             }
         }
 
+        public int getCurrentDepth() {
+            return this.currentDepth;
+        }
+
         private void prepareNextLevel()
         {
             Collection<Node> nodesToIterate = new ArrayList<>( this.nextNodes );
@@ -456,7 +466,7 @@ public class ShortestPath implements PathFinder<Path>
                     ShortestPath.this.upperBound >= 0 &&
                     (this.currentDepth + ShortestPath.this.lowerBound > ShortestPath.this.upperBound);
 
-                if ( filterNextLevelNodes( result ) != null && isOutOfBounds == false)
+                if ( filterNextLevelNodes( result ) != null )
                 {
                     lastMetadata.rels++;
 
@@ -465,8 +475,11 @@ public class ShortestPath implements PathFinder<Path>
                     {
                         levelData = new LevelData( nextRel, this.currentDepth );
                         this.visitedNodes.put( result, levelData );
-                        this.nextNodes.add( result );
-                        return result;
+                        if ( isOutOfBounds == false )
+                        {
+                            this.nextNodes.add( result );
+                            return result;
+                        }
                     }
                     else if ( this.currentDepth == levelData.depth )
                     {
