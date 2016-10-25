@@ -82,7 +82,6 @@ public class ShortestPath implements PathFinder<Path>
     static private int[][] landmarks = null;
     static private int numV;
     static private int numL;
-    private int lowerBound;
     private int upperBound;
     private int startId;
     private int endId;
@@ -166,14 +165,6 @@ public class ShortestPath implements PathFinder<Path>
                 this.upperBound = Math.min(this.upperBound,
                         this.landmarks[this.startId][i] + this.landmarks[this.endId][i]);
         if (this.upperBound == this.numV) this.upperBound = -1;
-    }
-
-    private void computeLowerBound( int curId, int curStartId ) {
-        int curEndId = curStartId == this.startId ? this.endId : this.startId;
-        this.lowerBound = -1;
-        for (int i = 0; i < this.numL; i ++)
-            this.lowerBound = Math.max(this.lowerBound,
-                    Math.abs(this.landmarks[curId][i] - this.landmarks[curEndId][i]));
     }
 
     @Override
@@ -461,10 +452,20 @@ public class ShortestPath implements PathFinder<Path>
 
                 int resultId = (int)result.getProperty("id", -1);
                 int startId = (int)this.startNode.getProperty("id", -1);
-                ShortestPath.this.computeLowerBound(resultId, startId);
-                boolean isOutOfBounds = ShortestPath.this.lowerBound >= 0 &&
-                    ShortestPath.this.upperBound >= 0 &&
-                    (this.currentDepth + ShortestPath.this.lowerBound > ShortestPath.this.upperBound);
+                int endId = startId == ShortestPath.this.startId ? 
+                    ShortestPath.this.endId : ShortestPath.this.startId;
+                int[] landmarkCurrent = ShortestPath.this.landmarks[resultId];
+                int[] landmarkEnd = ShortestPath.this.landmarks[endId];
+                int numLandmarks = ShortestPath.this.numL;
+                int lowerBound = -1;
+                for (int i = 0; i < numLandmarks; i ++) {
+                    int newLowerBound = landmarkCurrent[i] - landmarkEnd[i];
+                    if (newLowerBound < 0) newLowerBound *= -1;
+                    if (newLowerBound > lowerBound) lowerBound = newLowerBound;
+                }
+
+                boolean isOutOfBounds = lowerBound >= 0 && ShortestPath.this.upperBound >= 0 &&
+                    (this.currentDepth + lowerBound > ShortestPath.this.upperBound);
 
                 if ( filterNextLevelNodes( result ) != null )
                 {
