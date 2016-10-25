@@ -122,11 +122,13 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
-        if (this.landmarks == null) readLandmarks("landmark-matrix.txt");
+        if (this.landmarks == null) {
+            this.landmarks = readLandmarks("landmark-matrix.txt");
+        }
     }
 
-    private void readLandmarks( String filename ) {
-        ArrayList<ArrayList<Integer>> landmarkMatrix = new ArrayList<ArrayList<Integer>>();
+    private int[][] readLandmarks( String filename ) {
+        ArrayList<String> rows = new ArrayList<String>();
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
@@ -135,27 +137,31 @@ public class ShortestPath implements PathFinder<Path>
             while (true) {
                 line = br.readLine();
                 if (line == null) break;
-
-                Scanner scanner = new Scanner(line);
-                ArrayList<Integer> row = new ArrayList<Integer>();
-                while (scanner.hasNextInt()) row.add(scanner.nextInt());
-                landmarkMatrix.add(row);
+                rows.add(line);
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
 
-        this.numV = landmarkMatrix.size();
-        if (this.numV == 0) return;
-        this.numL = landmarkMatrix.get(0).size();
-        this.landmarks = new int[this.numV][this.numL];
-        for (int i = 0; i < this.numV; i ++) {
-            ArrayList<Integer> row = landmarkMatrix.get(i);
-            for (int j = 0; j < this.numL; j ++)
-                this.landmarks[i][j] = row.get(j);
+        this.numV = rows.size();
+        if (this.numV == 0) return null;
+        this.numL = 0;
+        Scanner counter = new Scanner(rows.get(0));
+        while (counter.hasNextInt()) {
+            counter.nextInt();
+            this.numL += 1;
         }
+
+        int[][] landmarks = new int[this.numV][this.numL];
+        for (int i = 0; i < this.numV; i ++) {
+            Scanner scanner = new Scanner(rows.get(i));
+            for (int j = 0; j < this.numL; j ++)
+                landmarks[i][j] = scanner.nextInt();
+        }
+
         System.out.printf("Landmarks Loaded\n");
+        return landmarks;
     }
 
     private void computeUpperBound() {
