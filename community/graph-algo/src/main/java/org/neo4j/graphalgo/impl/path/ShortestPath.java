@@ -79,7 +79,8 @@ public class ShortestPath implements PathFinder<Path>
     private int numFetchVertex;
     private int numFetchEdge;
 
-    static private int[][] landmarks = null;
+    static private int[][] lm2v = null;
+    static private int[][] v2lm = null;
     static private int numV;
     static private int numL;
     private int upperBound;
@@ -122,9 +123,10 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
-        if (this.landmarks == null) {
-            this.landmarks = readLandmarks("landmark-matrix.txt");
-        }
+        if (this.lm2v == null)
+            this.lm2v = readLandmarks("landmark-vertex-matrix.txt");
+        if (this.v2lm == null)
+            this.v2lm = readLandmarks("vertex-landmark-matrix.txt");
     }
 
     private int[][] readLandmarks( String filename ) {
@@ -160,16 +162,16 @@ public class ShortestPath implements PathFinder<Path>
                 landmarks[i][j] = scanner.nextInt();
         }
 
-        System.out.printf("Landmarks Loaded\n");
+        System.out.printf("Landmarks %s Loaded\n", filename);
         return landmarks;
     }
 
     private void computeUpperBound() {
         this.upperBound = this.numV;
         for (int i = 0; i < this.numL; i ++)
-            if (this.landmarks[this.startId][i] >= 0 && this.landmarks[this.endId][i] >= 0)
+            if (this.v2lm[this.startId][i] >= 0 && this.lm2v[this.endId][i] >= 0)
                 this.upperBound = Math.min(this.upperBound,
-                        this.landmarks[this.startId][i] + this.landmarks[this.endId][i]);
+                        this.v2lm[this.startId][i] + this.lm2v[this.endId][i]);
         if (this.upperBound == this.numV) this.upperBound = -1;
     }
 
@@ -458,15 +460,21 @@ public class ShortestPath implements PathFinder<Path>
 
                 int resultId = (int)result.getProperty("id", -1);
                 int startId = (int)this.startNode.getProperty("id", -1);
-                int endId = startId == ShortestPath.this.startId ? 
-                    ShortestPath.this.endId : ShortestPath.this.startId;
-                int[] landmarkCurrent = ShortestPath.this.landmarks[resultId];
-                int[] landmarkEnd = ShortestPath.this.landmarks[endId];
+                int sId, tId;
+                if (startId == ShortestPath.this.startId) {
+                    sId = resultId;
+                    tId = ShortestPath.this.endId;
+                }
+                else {
+                    sId = ShortestPath.this.startId;
+                    tId = resultId;
+                }
+                int[] s2lm = ShortestPath.this.v2lm[sId];
+                int[] t2lm = ShortestPath.this.v2lm[tId];
                 int numLandmarks = ShortestPath.this.numL;
                 int lowerBound = -1;
                 for (int i = 0; i < numLandmarks; i ++) {
-                    int newLowerBound = landmarkCurrent[i] - landmarkEnd[i];
-                    if (newLowerBound < 0) newLowerBound *= -1;
+                    int newLowerBound = s2lm[i] - t2lm[i];
                     if (newLowerBound > lowerBound) lowerBound = newLowerBound;
                 }
 
