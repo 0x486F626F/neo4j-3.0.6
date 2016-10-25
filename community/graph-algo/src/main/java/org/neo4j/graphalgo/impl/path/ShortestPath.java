@@ -282,11 +282,13 @@ public class ShortestPath implements PathFinder<Path>
             return;
         }
         Node nextNode = directionData.next();
+        System.out.printf("Check: %d\n", (int)nextNode.getProperty("id", -1));
         LevelData otherSideHit = otherSide.visitedNodes.get( nextNode );
         if ( otherSideHit != null )
         {
             // This is a hit
             int depth = directionData.currentDepth + otherSideHit.depth;
+            System.out.printf("Pass: %d %d\n", (int)nextNode.getProperty("id", -1), depth);
 
             if ( directionData.sharedFrozenDepth.value == NULL )
             {
@@ -426,6 +428,11 @@ public class ShortestPath implements PathFinder<Path>
 
         private void prepareNextLevel()
         {
+            System.out.printf("Prepare Next Level %d of %d:", 
+                    this.currentDepth + 1, (int)this.startNode.getProperty("id", -1));
+            for (Node node : this.nextNodes) 
+                System.out.printf(" %d", (int)node.getProperty("id", -1));
+            System.out.printf("\n");
             Collection<Node> nodesToIterate = new ArrayList<>( this.nextNodes );
             this.nextNodes.clear();
             this.lastPath.setLength( currentDepth );
@@ -469,6 +476,9 @@ public class ShortestPath implements PathFinder<Path>
                     if (newLowerBound < 0) newLowerBound *= -1;
                     if (newLowerBound > lowerBound) lowerBound = newLowerBound;
                 }
+
+                System.out.printf("%d %d %d %d %d\n", startId, resultId, 
+                        this.currentDepth, lowerBound, ShortestPath.this.upperBound);
 
                 boolean isOutOfBounds = lowerBound >= 0 && ShortestPath.this.upperBound >= 0 &&
                     (this.currentDepth + lowerBound > ShortestPath.this.upperBound);
