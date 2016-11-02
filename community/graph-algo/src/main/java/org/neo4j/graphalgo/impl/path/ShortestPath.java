@@ -217,59 +217,61 @@ public class ShortestPath implements PathFinder<Path>
             otherSide.finishCurrentLayerThenStop = true;
             return;
         }
-        Node nextNode = directionData.next();
-        LevelData otherSideHit = otherSide.visitedNodes.get( nextNode );
-        if ( otherSideHit != null )
-        {
-            // This is a hit
-            int depth = directionData.currentDepth + otherSideHit.depth;
+        Collection<Node> nextNodes = directionData.next();
+        for (Node nextNode : nextNodes) {
+            LevelData otherSideHit = otherSide.visitedNodes.get( nextNode );
+            if ( otherSideHit != null )
+            {
+                // This is a hit
+                int depth = directionData.currentDepth + otherSideHit.depth;
 
-            if ( directionData.sharedFrozenDepth.value == NULL )
-            {
-                directionData.sharedFrozenDepth.value = depth;
-            }
-            if ( depth <= directionData.sharedFrozenDepth.value )
-            {
-                directionData.haveFoundSomething = true;
-                if ( depth < directionData.sharedFrozenDepth.value )
+                if ( directionData.sharedFrozenDepth.value == NULL )
                 {
                     directionData.sharedFrozenDepth.value = depth;
-                    // TODO Is it really ok to just stop the other side here?
-                    // I'm basing that decision on that it was the other side
-                    // which found the deeper paths (correct assumption?)
-                    otherSide.stop = true;
                 }
-                // Add it to the list of hits
-                DirectionData startSideData = directionData == startSide ? directionData : otherSide;
-                DirectionData endSideData = directionData == startSide ? otherSide : directionData;
-                Hit hit = new Hit( startSideData, endSideData, nextNode );
-                Node start = startSide.startNode;
-                Node end = (startSide == directionData) ? otherSide.startNode : directionData.startNode;
-                monitorData( startSide, (otherSide == startSide) ? directionData : otherSide, nextNode );
-                // NOTE: Applying the filter-condition could give the wrong results with allShortestPaths,
-                // so only use it for singleShortestPath
-                if ( !stopAsap || filterPaths( hitToPaths( hit, start, end, stopAsap ) ).size() > 0 )
+                if ( depth <= directionData.sharedFrozenDepth.value )
                 {
-                    if ( hits.add( hit, depth ) >= maxResultCount )
+                    directionData.haveFoundSomething = true;
+                    if ( depth < directionData.sharedFrozenDepth.value )
                     {
-                        directionData.stop = true;
+                        directionData.sharedFrozenDepth.value = depth;
+                        // TODO Is it really ok to just stop the other side here?
+                        // I'm basing that decision on that it was the other side
+                        // which found the deeper paths (correct assumption?)
                         otherSide.stop = true;
-                        lastMetadata.paths++;
                     }
-                    else if ( stopAsap )
-                    {   // This side found a hit, but wait for the other side to complete its current depth
-                        // to see if it finds a shorter path. (i.e. stop this side and freeze the depth).
-                        // but only if the other side has not stopped, otherwise we might miss shorter paths
-                        if ( otherSide.stop )
-                        { return; }
-                        directionData.stop = true;
+                    // Add it to the list of hits
+                    DirectionData startSideData = directionData == startSide ? directionData : otherSide;
+                    DirectionData endSideData = directionData == startSide ? otherSide : directionData;
+                    Hit hit = new Hit( startSideData, endSideData, nextNode );
+                    Node start = startSide.startNode;
+                    Node end = (startSide == directionData) ? otherSide.startNode : directionData.startNode;
+                    monitorData( startSide, (otherSide == startSide) ? directionData : otherSide, nextNode );
+                    // NOTE: Applying the filter-condition could give the wrong results with allShortestPaths,
+                    // so only use it for singleShortestPath
+                    if ( !stopAsap || filterPaths( hitToPaths( hit, start, end, stopAsap ) ).size() > 0 )
+                    {
+                        if ( hits.add( hit, depth ) >= maxResultCount )
+                        {
+                            directionData.stop = true;
+                            otherSide.stop = true;
+                            lastMetadata.paths++;
+                        }
+                        else if ( stopAsap )
+                        {   // This side found a hit, but wait for the other side to complete its current depth
+                            // to see if it finds a shorter path. (i.e. stop this side and freeze the depth).
+                            // but only if the other side has not stopped, otherwise we might miss shorter paths
+                            if ( otherSide.stop )
+                            { return; }
+                            directionData.stop = true;
+                        }
                     }
-                }
-                else
-                {
-                    directionData.haveFoundSomething = false;
-                    directionData.sharedFrozenDepth.value = NULL;
-                    otherSide.stop = false;
+                    else
+                    {
+                        directionData.haveFoundSomething = false;
+                        directionData.sharedFrozenDepth.value = NULL;
+                        otherSide.stop = false;
+                    }
                 }
             }
         }
@@ -312,7 +314,7 @@ public class ShortestPath implements PathFinder<Path>
     }
 
     // Two long-lived instances
-    private class DirectionData extends PrefetchingIterator<Node>
+    private class DirectionData extends PrefetchingIterator<Collection<Node>>
     {
         private boolean finishCurrentLayerThenStop;
         private final Node startNode;
@@ -370,16 +372,16 @@ public class ShortestPath implements PathFinder<Path>
         }
 
         @Override
-        protected Node fetchNextOrNull()
+        protected Collection<Node> fetchNextOrNull()
         {
-            ShortestPath.this.numFetchVertex ++;
+            if ( !this.nextRelationships.hasNext() && canGoDeeper() )
+                prepareNextLevel();
+            this.nextNodes.clear();
+
             while ( true )
             {
                 Relationship nextRel = fetchNextRelOrNull();
-                if ( nextRel == null )
-                {
-                    return null;
-                }
+                if ( nextRel == null ) break;
 
                 Node result = nextRel.getOtherNode( this.lastPath.endNode() );
 
@@ -393,7 +395,6 @@ public class ShortestPath implements PathFinder<Path>
                         levelData = new LevelData( nextRel, this.currentDepth );
                         this.visitedNodes.put( result, levelData );
                         this.nextNodes.add( result );
-                        return result;
                     }
                     else if ( this.currentDepth == levelData.depth )
                     {
@@ -401,6 +402,8 @@ public class ShortestPath implements PathFinder<Path>
                     }
                 }
             }
+            ShortestPath.this.numFetchVertex += this.nextNodes.size();
+            return this.nextNodes.size() > 0 ? this.nextNodes : null;
         }
 
         private boolean canGoDeeper()
@@ -422,13 +425,7 @@ public class ShortestPath implements PathFinder<Path>
             {
                 return null;
             }
-            if ( !this.nextRelationships.hasNext() )
-            {
-                if ( canGoDeeper() )
-                {
-                    prepareNextLevel();
-                }
-            }
+
             return this.nextRelationships.hasNext() ? this.nextRelationships.next() : null;
         }
     }
