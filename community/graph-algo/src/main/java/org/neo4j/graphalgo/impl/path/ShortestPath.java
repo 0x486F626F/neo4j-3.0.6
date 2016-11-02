@@ -19,6 +19,10 @@
  */
 package org.neo4j.graphalgo.impl.path;
 
+import java.io.BufferedReader;  
+import java.io.FileInputStream;  
+import java.io.InputStreamReader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +33,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.impl.util.PathImpl;
@@ -74,6 +79,14 @@ public class ShortestPath implements PathFinder<Path>
     private int numFetchVertex;
     private int numFetchEdge;
 
+    static private int[][] lm2v = null;
+    static private int[][] v2lm = null;
+    static private int numV;
+    static private int numL;
+    private int upperBound;
+    private int startId;
+    private int endId;
+
     public interface ShortestPathPredicate {
         boolean test( Path path );
     }
@@ -110,6 +123,56 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
+        if (this.lm2v == null)
+            this.lm2v = readLandmarks("landmark-vertex-matrix.txt");
+        if (this.v2lm == null)
+            this.v2lm = readLandmarks("vertex-landmark-matrix.txt");
+    }
+
+    private int[][] readLandmarks( String filename ) {
+        ArrayList<String> rows = new ArrayList<String>();
+        try {
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                        new FileInputStream(filename)));
+            String line;
+            while (true) {
+                line = br.readLine();
+                if (line == null) break;
+                rows.add(line);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        this.numV = rows.size();
+        if (this.numV == 0) return null;
+        this.numL = 0;
+        Scanner counter = new Scanner(rows.get(0));
+        while (counter.hasNextInt()) {
+            counter.nextInt();
+            this.numL += 1;
+        }
+
+        int[][] landmarks = new int[this.numV][this.numL];
+        for (int i = 0; i < this.numV; i ++) {
+            Scanner scanner = new Scanner(rows.get(i));
+            for (int j = 0; j < this.numL; j ++)
+                landmarks[i][j] = scanner.nextInt();
+        }
+
+        System.out.printf("Landmarks %s Loaded\n", filename);
+        return landmarks;
+    }
+
+    private void computeUpperBound() {
+        this.upperBound = this.numV;
+        for (int i = 0; i < this.numL; i ++)
+            if (this.v2lm[this.startId][i] >= 0 && this.lm2v[this.endId][i] >= 0)
+                this.upperBound = Math.min(this.upperBound,
+                        this.v2lm[this.startId][i] + this.lm2v[this.endId][i]);
+        if (this.upperBound == this.numV) this.upperBound = -1;
     }
 
     @Override
@@ -140,9 +203,13 @@ public class ShortestPath implements PathFinder<Path>
 
     private Iterable<Path> internalPaths( Node start, Node end, boolean stopAsap )
     {
-        long startTime = System.currentTimeMillis();
+	long startTime = System.currentTimeMillis();
         this.numFetchVertex = 0;
         this.numFetchEdge = 0;
+        this.startId = (int)start.getProperty("id", -1);
+        this.endId = (int)end.getProperty("id", -1);
+        this.computeUpperBound();
+
         lastMetadata = new Metadata();
         if ( start.equals( end ) )
         {
@@ -218,6 +285,7 @@ public class ShortestPath implements PathFinder<Path>
             return;
         }
         Collection<Node> nextNodes = directionData.next();
+        Collection<Node> inBoundNodes = new ArrayList<Node> ();
         for (Node nextNode : nextNodes) {
             LevelData otherSideHit = otherSide.visitedNodes.get( nextNode );
             if ( otherSideHit != null )
@@ -274,7 +342,29 @@ public class ShortestPath implements PathFinder<Path>
                     }
                 }
             }
+            int curId = (int)nextNode.getProperty("id", -1);
+            int sId, tId;
+            if ((int)directionData.startNode.getProperty("id", -1) == this.startId) {
+                sId = curId;
+                tId = this.endId;
+            }
+            else {
+                sId = this.startId;
+                tId = curId;
+            }
+            int[] s2lm = this.v2lm[sId];
+            int[] t2lm = this.v2lm[tId];
+            int lowerBound = -1;
+            for (int i = 0; i < this.numL; i ++) {
+                int newLowerBound = s2lm[i] - t2lm[i];
+                if (newLowerBound > lowerBound) lowerBound = newLowerBound;
+            }
+
+            boolean isOutOfBounds = lowerBound >= 0 && this.upperBound >= 0 &&
+                (directionData.currentDepth + lowerBound > this.upperBound);
+            if (!isOutOfBounds) inBoundNodes.add(nextNode);
         }
+        directionData.setNextNodes(inBoundNodes);
     }
 
     private void monitorData( DirectionData directionData, DirectionData otherSide, Node connectingNode )
@@ -317,8 +407,8 @@ public class ShortestPath implements PathFinder<Path>
     private class DirectionData extends PrefetchingIterator<Collection<Node>>
     {
         private boolean finishCurrentLayerThenStop;
-        private final Node startNode;
-        private int currentDepth;
+        public final Node startNode;
+        public int currentDepth;
         private Iterator<Relationship> nextRelationships;
         private final Collection<Node> nextNodes = new ArrayList<Node>();
         private final Map<Node,LevelData> visitedNodes = new HashMap<Node,LevelData>();
@@ -350,6 +440,13 @@ public class ShortestPath implements PathFinder<Path>
             else
             {
                 this.nextRelationships = Collections.<Relationship> emptyList().iterator();
+            }
+        }
+
+        public void setNextNodes(Collection<Node> inBoundNodes) {
+            if (inBoundNodes.size() < this.nextNodes.size()) {
+                this.nextNodes.clear();
+                for (Node node : inBoundNodes) this.nextNodes.add(node);
             }
         }
 
