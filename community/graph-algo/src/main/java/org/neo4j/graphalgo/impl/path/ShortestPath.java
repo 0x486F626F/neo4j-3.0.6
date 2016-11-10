@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,8 +82,13 @@ public class ShortestPath implements PathFinder<Path>
 
     static private int[][] lm2v = null;
     static private int[][] v2lm = null;
+    static private int[] partition = null;
+    static private BitSet[][] neighbor = null;
+    static private BitSet[][] rneighbor = null;
     static private int numV;
     static private int numL;
+    static private int steps;
+    static private int maxBit;
     private int upperBound;
     private int startId;
     private int endId;
@@ -127,6 +133,79 @@ public class ShortestPath implements PathFinder<Path>
             this.lm2v = readLandmarks("landmark-vertex-matrix.txt");
         if (this.v2lm == null)
             this.v2lm = readLandmarks("vertex-landmark-matrix.txt");
+        if (this.partition == null || this.neighbor == null || this.rneighbor == null)
+            readPartition("partition.txt", "neighbor.txt");
+    }
+
+    private void readPartition( String partitionfile, String neighborfile ) {
+        ArrayList<Integer> arr = new ArrayList<Integer>();
+        arr.add(-1);
+        try {
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                        new FileInputStream(partitionfile)));
+            String line;
+            while (true) {
+                line = br.readLine();
+                if (line == null) break;
+                Scanner scanner = new Scanner(line);
+                arr.add(scanner.nextInt());
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        this.numV = arr.size();
+        this.partition = new int[this.numV];
+        for (int i = 0; i < this.numV; i ++)
+            this.partition[i] = arr.get(i);
+
+        try {
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                        new FileInputStream(neighborfile)));
+            Scanner scanner = new Scanner(br.readLine());
+            this.maxBit = scanner.nextInt();
+            this.steps = scanner.nextInt();
+            this.neighbor = new BitSet[this.numV][this.steps];
+            this.rneighbor = new BitSet[this.numV][this.steps];
+
+            for (int i = 1; i < this.numV; i ++) {
+                for (int j = 0; j < this.steps; j ++) {
+                    String line = br.readLine();
+                    this.neighbor[i][j] = new BitSet(this.maxBit);
+                    for (int k = 0; k < this.maxBit; k ++) 
+                        if (line.charAt(k) == '1') this.neighbor[i][j].set(this.maxBit - 1 - k);
+                }
+                for (int j = 0; j < this.steps; j ++) {
+                    String line = br.readLine();
+                    this.rneighbor[i][j] = new BitSet(this.maxBit);
+                    for (int k = 0; k < this.maxBit; k ++)
+                        if (line.charAt(k) == '1') this.rneighbor[i][j].set(this.maxBit - 1 - k);
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.out.println("Partition Data Loaded");
+    }
+
+    private boolean checkLowerBound(int v1, int v2, int distance) {
+        if (distance < 1) return true;
+        if (distance == 1 && v1 != v2) return true;
+        for (int i = Math.max(0, distance - steps - 1); i < Math.min(steps, distance); i ++) {
+            int j = distance - i - 1;
+            BitSet bit1 = new BitSet(this.maxBit);
+            BitSet bit2 = new BitSet(this.maxBit);
+            bit1.set(this.partition[v1]);
+            bit2.set(this.partition[v2]);
+            if (i > 0) bit1 = this.neighbor[v1][i - 1];
+            if (j > 0) bit2 = this.rneighbor[v2][j - 1];
+            if (bit1.intersects(bit2)) return true;
+        } 
+        return false;
     }
 
     private int[][] readLandmarks( String filename ) {
@@ -470,17 +549,9 @@ public class ShortestPath implements PathFinder<Path>
                     sId = ShortestPath.this.startId;
                     tId = resultId;
                 }
-                int[] s2lm = ShortestPath.this.v2lm[sId];
-                int[] t2lm = ShortestPath.this.v2lm[tId];
-                int numLandmarks = ShortestPath.this.numL;
-                int lowerBound = -1;
-                for (int i = 0; i < numLandmarks; i ++) {
-                    int newLowerBound = s2lm[i] - t2lm[i];
-                    if (newLowerBound > lowerBound) lowerBound = newLowerBound;
-                }
 
-                boolean isOutOfBounds = lowerBound >= 0 && ShortestPath.this.upperBound >= 0 &&
-                    (this.currentDepth + lowerBound > ShortestPath.this.upperBound);
+                int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
+                boolean isOutOfBounds = ShortestPath.this.checkLowerBound(sId, tId, minLowerBound);
 
                 if ( filterNextLevelNodes( result ) != null )
                 {
