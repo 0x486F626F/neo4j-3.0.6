@@ -550,8 +550,11 @@ public class ShortestPath implements PathFinder<Path>
                     tId = resultId;
                 }
 
-                int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
-                boolean isOutOfBounds = ShortestPath.this.checkLowerBound(sId, tId, minLowerBound);
+                boolean isOutOfBounds = false;
+                if (ShortestPath.this.upperBound != -1) {
+                    int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
+                    isOutOfBounds = ShortestPath.this.checkLowerBound(sId, tId, minLowerBound);
+                }
 
                 if ( filterNextLevelNodes( result ) != null )
                 {
