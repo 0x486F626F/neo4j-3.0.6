@@ -139,7 +139,6 @@ public class ShortestPath implements PathFinder<Path>
 
     private void readPartition( String partitionfile, String neighborfile ) {
         ArrayList<Integer> arr = new ArrayList<Integer>();
-        arr.add(-1);
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
@@ -157,9 +156,10 @@ public class ShortestPath implements PathFinder<Path>
         }
 
         this.numV = arr.size();
-        this.partition = new int[this.numV];
-        for (int i = 0; i < this.numV; i ++)
-            this.partition[i] = arr.get(i);
+        this.partition = new int[this.numV + 1];
+        System.out.printf("size: %d\n", this.numV);
+        for (int i = 1; i < this.numV; i ++)
+            this.partition[i] = arr.get(i - 1);
 
         try {
             BufferedReader br = new BufferedReader(
@@ -168,8 +168,8 @@ public class ShortestPath implements PathFinder<Path>
             Scanner scanner = new Scanner(br.readLine());
             this.maxBit = scanner.nextInt();
             this.steps = scanner.nextInt();
-            this.neighbor = new BitSet[this.numV][this.steps];
-            this.rneighbor = new BitSet[this.numV][this.steps];
+            this.neighbor = new BitSet[this.numV + 1][this.steps];
+            this.rneighbor = new BitSet[this.numV + 1][this.steps];
 
             for (int i = 1; i < this.numV; i ++) {
                 for (int j = 0; j < this.steps; j ++) {
@@ -203,7 +203,7 @@ public class ShortestPath implements PathFinder<Path>
             bit2.set(this.partition[v2]);
             if (i > 0) bit1 = this.neighbor[v1][i - 1];
             if (j > 0) bit2 = this.rneighbor[v2][j - 1];
-            if (bit1.intersects(bit2)) return true;
+            if (!bit1.intersects(bit2)) return true;
         } 
         return false;
     }
