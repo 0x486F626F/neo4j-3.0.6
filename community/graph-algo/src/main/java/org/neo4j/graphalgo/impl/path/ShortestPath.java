@@ -474,10 +474,11 @@ public class ShortestPath implements PathFinder<Path>
                 int[] t2lm = ShortestPath.this.v2lm[tId];
                 int numLandmarks = ShortestPath.this.numL;
                 int lowerBound = -1;
-                for (int i = 0; i < numLandmarks; i ++) {
-                    int newLowerBound = s2lm[i] - t2lm[i];
-                    if (newLowerBound > lowerBound) lowerBound = newLowerBound;
-                }
+                for (int i = 0; i < numLandmarks; i ++) 
+                    if (s2lm[i] >=0 && t2lm[i] >= 0) {
+                        int newLowerBound = s2lm[i] - t2lm[i];
+                        if (newLowerBound > lowerBound) lowerBound = newLowerBound;
+                    }
 
                 boolean isOutOfBounds = lowerBound >= 0 && ShortestPath.this.upperBound >= 0 &&
                     (this.currentDepth + lowerBound > ShortestPath.this.upperBound);
