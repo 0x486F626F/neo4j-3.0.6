@@ -263,7 +263,7 @@ public class ShortestPath implements PathFinder<Path>
     @Override
     public Path findSinglePath( Node start, Node end )
     {
-        Iterator<Path> paths = internalPaths( start, end, false ).iterator();
+        Iterator<Path> paths = internalPaths( start, end, true ).iterator();
         return paths.hasNext() ? paths.next() : null;
     }
 
@@ -312,12 +312,10 @@ public class ShortestPath implements PathFinder<Path>
         }
         Collection<Hit> least = hits.least();
         long endTime = System.currentTimeMillis();
-        Collection<Path> paths = least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
-        System.out.printf("Count: %d %d %d %d %d\n", 
+        System.out.printf("Count: %d %d %d %d\n", 
                 this.numFetchVertex, this.numFetchEdge,
-                sharedFrozenDepth.value,
-                paths.size(), endTime - startTime);
-        return paths;
+                sharedFrozenDepth.value, endTime - startTime);
+        return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
 
     @Override
