@@ -155,10 +155,8 @@ public class ShortestPath implements PathFinder<Path>
             e.printStackTrace();
         }
 
-        this.numV = arr.size();
-        this.partition = new int[this.numV + 1];
-        System.out.printf("size: %d\n", this.numV);
-        for (int i = 1; i < this.numV; i ++)
+        this.partition = new int[arr.size() + 1];
+        for (int i = 1; i <= arr.size(); i ++)
             this.partition[i] = arr.get(i - 1);
 
         try {
@@ -168,10 +166,10 @@ public class ShortestPath implements PathFinder<Path>
             Scanner scanner = new Scanner(br.readLine());
             this.maxBit = scanner.nextInt();
             this.steps = scanner.nextInt();
-            this.neighbor = new BitSet[this.numV + 1][this.steps];
-            this.rneighbor = new BitSet[this.numV + 1][this.steps];
+            this.neighbor = new BitSet[arr.size() + 1][this.steps];
+            this.rneighbor = new BitSet[arr.size() + 1][this.steps];
 
-            for (int i = 1; i < this.numV; i ++) {
+            for (int i = 1; i <= arr.size(); i ++) {
                 for (int j = 0; j < this.steps; j ++) {
                     String line = br.readLine();
                     this.neighbor[i][j] = new BitSet(this.maxBit);
