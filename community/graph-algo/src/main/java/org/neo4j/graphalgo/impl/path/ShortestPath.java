@@ -154,7 +154,6 @@ public class ShortestPath implements PathFinder<Path>
             e.printStackTrace();
         }
 
-
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
@@ -163,20 +162,21 @@ public class ShortestPath implements PathFinder<Path>
             this.maxBit = scanner.nextInt();
             this.steps = scanner.nextInt();
 
-            this.numV = arr.size();
-            this.neighbor = new long[this.numV + 1][this.steps + 1];
-            this.rneighbor = new long[this.numV + 1][this.steps + 1];
-            for (int i = 1; i < this.numV; i ++)
+            this.neighbor = new long[arr.size() + 1][this.steps + 1];
+            this.rneighbor = new long[arr.size() + 1][this.steps + 1];
+            for (int i = 1; i <= arr.size(); i ++) {
                 this.neighbor[i][0] = 1 << arr.get(i - 1);
+                this.rneighbor[i][0] = 1 << arr.get(i - 1);
+            }
 
-            for (int i = 1; i < this.numV; i ++) {
+            for (int i = 1; i <= arr.size(); i ++) {
                 for (int j = 1; j <= this.steps; j ++) {
                     String line = br.readLine();
                     this.neighbor[i][j] = 0;
                     for (int k = 0; k < this.maxBit; k ++) 
                         if (line.charAt(k) == '1') this.neighbor[i][j] |= 1 << (this.maxBit - 1 - k);
                 }
-                for (int j = 0; j < this.steps; j ++) {
+                for (int j = 1; j <= this.steps; j ++) {
                     String line = br.readLine();
                     this.rneighbor[i][j] = 0;
                     for (int k = 0; k < this.maxBit; k ++)
