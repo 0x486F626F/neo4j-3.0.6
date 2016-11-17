@@ -190,16 +190,6 @@ public class ShortestPath implements PathFinder<Path>
         System.out.println("Partition Data Loaded");
     }
 
-    private boolean checkLowerBound(int v1, int v2, int distance) {
-        if (distance < 1) return true;
-        if (distance == 1 && v1 != v2) return true;
-        for (int i = Math.max(0, distance - steps - 1); i < Math.min(steps, distance); i ++) {
-            int j = distance - i - 1;
-            if ((this.neighbor[v1][i] & this.rneighbor[v2][j]) == 0) return true;
-        } 
-        return false;
-    }
-
     private int[][] readLandmarks( String filename ) {
         ArrayList<String> rows = new ArrayList<String>();
         try {
@@ -543,7 +533,18 @@ public class ShortestPath implements PathFinder<Path>
                 boolean isOutOfBounds = false;
                 if (ShortestPath.this.upperBound != -1) {
                     int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
-                    isOutOfBounds = ShortestPath.this.checkLowerBound(sId, tId, minLowerBound);
+                    if (minLowerBound == 1 && sId != tId) isOutOfBounds = true;
+                    int iLow = minLowerBound - ShortestPath.this.steps - 1, iUp = ShortestPath.this.steps;
+                    if (0 > iLow) iLow = 0;
+                    if (minLowerBound < iUp) iUp = minLowerBound;
+
+                    for (int i = iLow; i < iUp; i ++) {
+                        int j = minLowerBound - i - 1;
+                        if ((ShortestPath.this.neighbor[sId][i] & ShortestPath.this.rneighbor[tId][j]) == 0) {
+                            isOutOfBounds = true;
+                            break;
+                        }
+                    } 
                 }
 
                 if ( filterNextLevelNodes( result ) != null )
