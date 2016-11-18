@@ -133,98 +133,59 @@ public class ShortestPath implements PathFinder<Path>
         if (this.v2lm == null)
             this.v2lm = readLandmarks("vertex-landmark-matrix.txt");
         if (this.neighbor == null || this.rneighbor == null)
-            readPartition("partition.txt", "neighbor.txt");
+            readPartitionBits("partition-bits.txt");
     }
 
-    private void readPartition( String partitionfile, String neighborfile ) {
-        ArrayList<Integer> arr = new ArrayList<Integer>();
+    private void readPartitionBits( String partitionfile ) {
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
                         new FileInputStream(partitionfile)));
-            String line;
-            while (true) {
+            String line = br.readLine();
+            String[] split = line.split("\\s+");
+            this.maxBit = Integer.parseInt(split[0]);
+            this.steps = Integer.parseInt(split[1]);
+            this.neighbor = new long[this.numV][this.steps + 1];
+            this.rneighbor = new long[this.numV][this.steps + 1];
+            for (int i = 1; i < this.numV; i ++) {
                 line = br.readLine();
-                if (line == null) break;
-                Scanner scanner = new Scanner(line);
-                arr.add(scanner.nextInt());
+                split = line.split("\\s+");
+                for (int j = 0; j <= this.steps; j ++)
+                    this.neighbor[i][j] = Long.parseLong(split[j]);
+                line = br.readLine();
+                split = line.split("\\s+");
+                for (int j = 0; j <= this.steps; j ++)
+                    this.rneighbor[i][j] = Long.parseLong(split[j]);
             }
         }
-        catch (Exception e) {
+        catch ( Exception e ) {
             e.printStackTrace();
         }
-
-        try {
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(
-                        new FileInputStream(neighborfile)));
-            Scanner scanner = new Scanner(br.readLine());
-            this.maxBit = scanner.nextInt();
-            this.steps = scanner.nextInt();
-
-            this.neighbor = new long[arr.size() + 1][this.steps + 1];
-            this.rneighbor = new long[arr.size() + 1][this.steps + 1];
-            for (int i = 1; i <= arr.size(); i ++) {
-                this.neighbor[i][0] = 1 << arr.get(i - 1);
-                this.rneighbor[i][0] = 1 << arr.get(i - 1);
-            }
-
-            for (int i = 1; i <= arr.size(); i ++) {
-                for (int j = 1; j <= this.steps; j ++) {
-                    String line = br.readLine();
-                    this.neighbor[i][j] = 0;
-                    for (int k = 0; k < this.maxBit; k ++) 
-                        if (line.charAt(k) == '1') this.neighbor[i][j] |= 1 << (this.maxBit - 1 - k);
-                }
-                for (int j = 1; j <= this.steps; j ++) {
-                    String line = br.readLine();
-                    this.rneighbor[i][j] = 0;
-                    for (int k = 0; k < this.maxBit; k ++)
-                        if (line.charAt(k) == '1') this.rneighbor[i][j] |= 1 << (this.maxBit - 1 - k);
-                }
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.out.println("Partition Data Loaded");
     }
 
     private int[][] readLandmarks( String filename ) {
-        ArrayList<String> rows = new ArrayList<String>();
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
                         new FileInputStream(filename)));
-            String line;
-            while (true) {
+            String line = br.readLine();
+            String[] split = line.split("\\s+");
+            this.numV = Integer.parseInt(split[0]);
+            this.numL = Integer.parseInt(split[1]);
+            int[][] landmarks = new int[this.numV][this.numL];
+            for (int i = 0; i < this.numV; i ++) {
                 line = br.readLine();
-                if (line == null) break;
-                rows.add(line);
+                split = line.split("\\s+");
+                for (int j = 0; j < this.numL; j ++)
+                    landmarks[i][j] = Integer.parseInt(split[j]);
             }
+            System.out.printf("Landmarks %s Loaded\n", filename);
+            return landmarks;
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-
-        this.numV = rows.size();
-        if (this.numV == 0) return null;
-        this.numL = 0;
-        Scanner counter = new Scanner(rows.get(0));
-        while (counter.hasNextInt()) {
-            counter.nextInt();
-            this.numL += 1;
-        }
-
-        int[][] landmarks = new int[this.numV][this.numL];
-        for (int i = 0; i < this.numV; i ++) {
-            Scanner scanner = new Scanner(rows.get(i));
-            for (int j = 0; j < this.numL; j ++)
-                landmarks[i][j] = scanner.nextInt();
-        }
-
-        System.out.printf("Landmarks %s Loaded\n", filename);
-        return landmarks;
+        return null;
     }
 
     private void computeUpperBound() {
