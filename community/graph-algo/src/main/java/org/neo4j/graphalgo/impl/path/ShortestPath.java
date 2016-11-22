@@ -228,8 +228,8 @@ public class ShortestPath implements PathFinder<Path>
         long startTime = System.currentTimeMillis();
         this.numFetchVertex = 0;
         this.numFetchEdge = 0;
-        this.startId = (int)start.getProperty("id", -1);
-        this.endId = (int)end.getProperty("id", -1);
+        this.startId = (int)start.getId();
+        this.endId = (int)end.getId();
         this.computeUpperBound();
 
         lastMetadata = new Metadata();
@@ -479,8 +479,8 @@ public class ShortestPath implements PathFinder<Path>
 
                 Node result = nextRel.getOtherNode( this.lastPath.endNode() );
 
-                int resultId = (int)result.getProperty("id", -1);
-                int startId = (int)this.startNode.getProperty("id", -1);
+                int resultId = (int)result.getId();
+                int startId = (int)this.startNode.getId();
                 int sId, tId;
                 if (startId == ShortestPath.this.startId) {
                     sId = resultId;
@@ -495,17 +495,19 @@ public class ShortestPath implements PathFinder<Path>
                 if (ShortestPath.this.upperBound != -1) {
                     int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
                     if (minLowerBound == 1 && sId != tId) isOutOfBounds = true;
-                    int iLow = minLowerBound - ShortestPath.this.steps - 1, iUp = ShortestPath.this.steps;
-                    if (0 > iLow) iLow = 0;
-                    if (minLowerBound < iUp) iUp = minLowerBound;
+                    else {
+                        int iLow = minLowerBound - ShortestPath.this.steps - 1, iUp = ShortestPath.this.steps;
+                        if (0 > iLow) iLow = 0;
+                        if (minLowerBound < iUp) iUp = minLowerBound;
 
-                    for (int i = iLow; i < iUp; i ++) {
-                        int j = minLowerBound - i - 1;
-                        if ((ShortestPath.this.neighbor[sId][i] & ShortestPath.this.rneighbor[tId][j]) == 0) {
-                            isOutOfBounds = true;
-                            break;
-                        }
-                    } 
+                        for (int i = iLow; i < iUp; i ++) {
+                            int j = minLowerBound - i - 1;
+                            if ((ShortestPath.this.neighbor[sId][i] & ShortestPath.this.rneighbor[tId][j]) == 0) {
+                                isOutOfBounds = true;
+                                break;
+                            }
+                        } 
+                    }
                 }
 
                 if ( filterNextLevelNodes( result ) != null )
