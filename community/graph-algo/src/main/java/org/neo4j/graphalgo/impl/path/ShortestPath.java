@@ -408,6 +408,9 @@ public class ShortestPath implements PathFinder<Path>
     {
         private boolean finishCurrentLayerThenStop;
         private final Node startNode;
+        private final int startId;
+        private final int endId;
+        private final boolean isStartSide;
         private int currentDepth;
         private Iterator<Relationship> nextRelationships;
         private final Collection<Node> nextNodes = new ArrayList<Node>();
@@ -425,6 +428,15 @@ public class ShortestPath implements PathFinder<Path>
                 MutableBoolean sharedStop, MutableInteger sharedCurrentDepth, PathExpander expander )
         {
             this.startNode = startNode;
+            this.startId = (int)startNode.getId();
+            if (this.startId == ShortestPath.this.startId) {
+                this.isStartSide = true;
+                this.endId = ShortestPath.this.endId;
+            }
+            else {
+                this.isStartSide = false;
+                this.endId = ShortestPath.this.startId;
+            }
             this.visitedNodes.put( startNode, new LevelData( null, 0 ) );
             this.nextNodes.add( startNode );
             this.sharedFrozenDepth = sharedFrozenDepth;
@@ -479,20 +491,19 @@ public class ShortestPath implements PathFinder<Path>
 
                 Node result = nextRel.getOtherNode( this.lastPath.endNode() );
 
-                int resultId = (int)result.getId();
-                int startId = (int)this.startNode.getId();
-                int sId, tId;
-                if (startId == ShortestPath.this.startId) {
-                    sId = resultId;
-                    tId = ShortestPath.this.endId;
-                }
-                else {
-                    sId = ShortestPath.this.startId;
-                    tId = resultId;
-                }
-
                 boolean isOutOfBounds = false;
                 if (ShortestPath.this.upperBound != -1) {
+                    int resultId = (int)result.getId();
+                    int sId, tId;
+                    if (this.isStartSide) {
+                        sId = resultId;
+                        tId = this.endId;
+                    }
+                    else {
+                        sId = this.endId;
+                        tId = resultId;
+                    }
+
                     int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
                     if (minLowerBound == 1 && sId != tId) isOutOfBounds = true;
                     else {
