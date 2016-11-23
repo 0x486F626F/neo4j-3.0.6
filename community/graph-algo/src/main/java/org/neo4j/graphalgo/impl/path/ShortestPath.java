@@ -80,8 +80,8 @@ public class ShortestPath implements PathFinder<Path>
     private int numFetchVertex;
     private int numFetchEdge;
 
-    static private int[][] lm2v = null;
-    static private int[][] v2lm = null;
+    static private byte[][] lm2v = null;
+    static private byte[][] v2lm = null;
     static private long[][] neighbor = null;
     static private long[][] rneighbor = null;
     static private int numV;
@@ -128,10 +128,8 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
-        if (this.lm2v == null)
-            this.lm2v = readLandmarks("landmark-vertex-matrix.txt");
-        if (this.v2lm == null)
-            this.v2lm = readLandmarks("vertex-landmark-matrix.txt");
+        if (this.lm2v == null || this.v2lm == null)
+            readLandmarks("landmark-vertex-matrix.txt", "vertex-landmark-matrix.txt");
         if (this.neighbor == null || this.rneighbor == null)
             readPartitionBits("partition-bits.txt");
     }
@@ -157,35 +155,52 @@ public class ShortestPath implements PathFinder<Path>
                 for (int j = 0; j <= this.steps; j ++)
                     this.rneighbor[i][j] = Long.parseLong(split[j]);
             }
+            System.out.printf("Partitions %s Loaded\n", partitionfile);
         }
         catch ( Exception e ) {
             e.printStackTrace();
         }
     }
 
-    private int[][] readLandmarks( String filename ) {
+    void readLandmarks( String lm2vFile, String v2lmFile ) {
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(
-                        new FileInputStream(filename)));
+                        new FileInputStream(lm2vFile)));
             String line = br.readLine();
             String[] split = line.split("\\s+");
             this.numV = Integer.parseInt(split[0]);
             this.numL = Integer.parseInt(split[1]);
-            int[][] landmarks = new int[this.numV][this.numL];
-            for (int i = 0; i < this.numV; i ++) {
+            this.lm2v = new byte[this.numV][this.numL];
+            this.v2lm = new byte[this.numV][this.numL];
+            for (int i = 0; i < numV; i ++) {
                 line = br.readLine();
                 split = line.split("\\s+");
-                for (int j = 0; j < this.numL; j ++)
-                    landmarks[i][j] = Integer.parseInt(split[j]);
+                for (int j = 0; j < this.numL; j ++) {
+                    int dist = Integer.parseInt(split[j]);
+                    if (dist < 128) this.lm2v[i][j] = (byte)dist;
+                    else this.lm2v[i][j] = -1;
+                }
             }
-            System.out.printf("Landmarks %s Loaded\n", filename);
-            return landmarks;
+            System.out.printf("Landmarks %s Loaded\n", lm2vFile);
+            br = new BufferedReader(
+                    new InputStreamReader(
+                        new FileInputStream(v2lmFile)));
+            line = br.readLine();
+            for (int i = 0; i < numV; i ++) {
+                line = br.readLine();
+                split = line.split("\\s+");
+                for (int j = 0; j < this.numL; j ++) {
+                    int dist = Integer.parseInt(split[j]);
+                    if (dist < 128) this.v2lm[i][j] = (byte)dist;
+                    else this.lm2v[i][j] = -1;
+                }
+            }
+            System.out.printf("Landmarks %s Loaded\n", v2lmFile);
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     private void computeUpperBound() {
