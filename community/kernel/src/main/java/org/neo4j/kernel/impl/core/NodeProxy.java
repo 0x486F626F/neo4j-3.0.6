@@ -83,11 +83,50 @@ public class NodeProxy
 
     private final NodeActions actions;
     private final long nodeId;
+    private byte[] v2lm = null;
+    private byte[] lm2v = null;
+    private long[] partition = null;
 
     public NodeProxy( NodeActions actions, long nodeId )
     {
         this.nodeId = nodeId;
         this.actions = actions;
+    }
+
+    public byte[] getv2lm() {
+        if (this.v2lm != null) return this.v2lm;
+        String str = (String)this.getProperty("v2lm", "");
+        String[] strArr = str.split("\\s+");
+        this.v2lm = new byte[strArr.length];
+        for (int i = 0; i < strArr.length; i ++)
+            this.v2lm[i] = Byte.parseByte(strArr[i]);
+        return this.v2lm;
+    }
+
+    public byte[] getlm2v() {
+        if (this.v2lm != null) return this.v2lm;
+        String str = (String)this.getProperty("lm2v", "");
+        String[] strArr = str.split("\\s+");
+        this.lm2v = new byte[strArr.length];
+        for (int i = 0; i < strArr.length; i ++)
+            this.lm2v[i] = Byte.parseByte(strArr[i]);
+        return this.lm2v;
+    }
+
+    public long getPartition( int step ) {
+        if (this.partition == null) { 
+            String str = (String)this.getProperty("part", "");
+            String[] strArr = str.split("\\s+");
+            this.partition = new long[strArr.length];
+            for (int i = 0; i < strArr.length; i ++)
+                this.partition[i] = Long.parseLong(strArr[i]);
+        }
+        return this.partition[step];
+    }
+
+    public long getRpartition( int step ) {
+        if (step == 0) return this.getPartition(0);
+        else return this.getPartition(step + 2);
     }
 
     @Override

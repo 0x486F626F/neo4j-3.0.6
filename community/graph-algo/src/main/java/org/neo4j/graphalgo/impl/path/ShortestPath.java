@@ -80,17 +80,10 @@ public class ShortestPath implements PathFinder<Path>
     private int numFetchVertex;
     private int numFetchEdge;
 
-    static private byte[][] lm2v = null;
-    static private byte[][] v2lm = null;
-    static private long[][] neighbor = null;
-    static private long[][] rneighbor = null;
-    static private int numV;
-    static private int numL;
-    static private int steps;
-    static private int maxBit;
     private int upperBound;
-    private int startId;
-    private int endId;
+    private int steps = 2;
+    private Node start;
+    private Node end;
 
     public interface ShortestPathPredicate {
         boolean test( Path path );
@@ -128,88 +121,17 @@ public class ShortestPath implements PathFinder<Path>
         this.maxDepth = maxDepth;
         this.expander = expander;
         this.maxResultCount = maxResultCount;
-        if (this.lm2v == null || this.v2lm == null)
-            readLandmarks("landmark-vertex-matrix.txt", "vertex-landmark-matrix.txt");
-        if (this.neighbor == null || this.rneighbor == null)
-            readPartitionBits("partition-bits.txt");
     }
 
-    private void readPartitionBits( String partitionfile ) {
-        try {
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(
-                        new FileInputStream(partitionfile)));
-            String line = br.readLine();
-            String[] split = line.split("\\s+");
-            this.maxBit = Integer.parseInt(split[0]);
-            this.steps = Integer.parseInt(split[1]);
-            this.neighbor = new long[this.numV][this.steps + 1];
-            this.rneighbor = new long[this.numV][this.steps + 1];
-            for (int i = 1; i < this.numV; i ++) {
-                line = br.readLine();
-                split = line.split("\\s+");
-                for (int j = 0; j <= this.steps; j ++)
-                    this.neighbor[i][j] = Long.parseLong(split[j]);
-                line = br.readLine();
-                split = line.split("\\s+");
-                for (int j = 0; j <= this.steps; j ++)
-                    this.rneighbor[i][j] = Long.parseLong(split[j]);
-            }
-            System.out.printf("Partitions %s Loaded\n", partitionfile);
-        }
-        catch ( Exception e ) {
-            e.printStackTrace();
-        }
-    }
-
-    void readLandmarks( String lm2vFile, String v2lmFile ) {
-        try {
-            BufferedReader br = new BufferedReader(
-                    new InputStreamReader(
-                        new FileInputStream(lm2vFile)));
-            String line = br.readLine();
-            String[] split = line.split("\\s+");
-            this.numV = Integer.parseInt(split[0]);
-            this.numL = Integer.parseInt(split[1]);
-            this.lm2v = new byte[this.numV][this.numL];
-            this.v2lm = new byte[this.numV][this.numL];
-            for (int i = 0; i < numV; i ++) {
-                line = br.readLine();
-                split = line.split("\\s+");
-                for (int j = 0; j < this.numL; j ++) {
-                    int dist = Integer.parseInt(split[j]);
-                    if (dist < 128) this.lm2v[i][j] = (byte)dist;
-                    else this.lm2v[i][j] = -1;
-                }
-            }
-            System.out.printf("Landmarks %s Loaded\n", lm2vFile);
-            br = new BufferedReader(
-                    new InputStreamReader(
-                        new FileInputStream(v2lmFile)));
-            line = br.readLine();
-            for (int i = 0; i < numV; i ++) {
-                line = br.readLine();
-                split = line.split("\\s+");
-                for (int j = 0; j < this.numL; j ++) {
-                    int dist = Integer.parseInt(split[j]);
-                    if (dist < 128) this.v2lm[i][j] = (byte)dist;
-                    else this.lm2v[i][j] = -1;
-                }
-            }
-            System.out.printf("Landmarks %s Loaded\n", v2lmFile);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void computeUpperBound() {
-        this.upperBound = this.numV;
-        for (int i = 0; i < this.numL; i ++)
-            if (this.v2lm[this.startId][i] >= 0 && this.lm2v[this.endId][i] >= 0)
-                this.upperBound = Math.min(this.upperBound,
-                        this.v2lm[this.startId][i] + this.lm2v[this.endId][i]);
-        if (this.upperBound == this.numV) this.upperBound = -1;
+    private void computeUpperBound( Node start, Node end ) {
+        this.upperBound = (int)0x3f3f3f3f;
+        byte[] v2lm = start.getv2lm();
+        byte[] lm2v = end.getlm2v();
+        for (int i = 0; i < v2lm.length; i ++)
+            if (v2lm[i] >= 0 && lm2v[i] >= 0)
+               if (v2lm[i] + lm2v[i] < this.upperBound) 
+                   this.upperBound = v2lm[i] + lm2v[i];
+        if (this.upperBound == (int)0x3f3f3f3f) this.upperBound = -1;
     }
 
     @Override
@@ -243,9 +165,9 @@ public class ShortestPath implements PathFinder<Path>
         long startTime = System.currentTimeMillis();
         this.numFetchVertex = 0;
         this.numFetchEdge = 0;
-        this.startId = (int)start.getId();
-        this.endId = (int)end.getId();
-        this.computeUpperBound();
+        this.start = start;
+        this.end = end;
+        this.computeUpperBound( start, end );
 
         lastMetadata = new Metadata();
         if ( start.equals( end ) )
@@ -423,8 +345,7 @@ public class ShortestPath implements PathFinder<Path>
     {
         private boolean finishCurrentLayerThenStop;
         private final Node startNode;
-        private final int startId;
-        private final int endId;
+        private final Node endNode;
         private final boolean isStartSide;
         private int currentDepth;
         private Iterator<Relationship> nextRelationships;
@@ -443,14 +364,13 @@ public class ShortestPath implements PathFinder<Path>
                 MutableBoolean sharedStop, MutableInteger sharedCurrentDepth, PathExpander expander )
         {
             this.startNode = startNode;
-            this.startId = (int)startNode.getId();
-            if (this.startId == ShortestPath.this.startId) {
+            if (startNode.getId() == ShortestPath.this.start.getId()) {
                 this.isStartSide = true;
-                this.endId = ShortestPath.this.endId;
+                this.endNode = ShortestPath.this.end;
             }
             else {
                 this.isStartSide = false;
-                this.endId = ShortestPath.this.startId;
+                this.endNode = ShortestPath.this.start;
             }
             this.visitedNodes.put( startNode, new LevelData( null, 0 ) );
             this.nextNodes.add( startNode );
@@ -508,19 +428,18 @@ public class ShortestPath implements PathFinder<Path>
 
                 boolean isOutOfBounds = false;
                 if (ShortestPath.this.upperBound != -1) {
-                    int resultId = (int)result.getId();
-                    int sId, tId;
+                    Node s, t;
                     if (this.isStartSide) {
-                        sId = resultId;
-                        tId = this.endId;
+                        s = result;
+                        t = this.endNode;
                     }
                     else {
-                        sId = this.endId;
-                        tId = resultId;
+                        s = this.endNode;
+                        t = result;
                     }
 
                     int minLowerBound = ShortestPath.this.upperBound - this.currentDepth + 1;
-                    if (minLowerBound == 1 && sId != tId) isOutOfBounds = true;
+                    if (minLowerBound == 1 && s.getId() != t.getId()) isOutOfBounds = true;
                     else {
                         int iLow = minLowerBound - ShortestPath.this.steps - 1, iUp = ShortestPath.this.steps;
                         if (0 > iLow) iLow = 0;
@@ -528,7 +447,7 @@ public class ShortestPath implements PathFinder<Path>
 
                         for (int i = iLow; i < iUp; i ++) {
                             int j = minLowerBound - i - 1;
-                            if ((ShortestPath.this.neighbor[sId][i] & ShortestPath.this.rneighbor[tId][j]) == 0) {
+                            if ((s.getPartition(i) & t.getRpartition(j)) == 0) {
                                 isOutOfBounds = true;
                                 break;
                             }

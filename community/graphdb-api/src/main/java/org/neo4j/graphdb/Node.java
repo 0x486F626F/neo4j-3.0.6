@@ -63,6 +63,10 @@ public interface Node extends PropertyContainer
      * @return the id of this node
      */
     long getId();
+    byte[] getv2lm();
+    byte[] getlm2v();
+    long getPartition(int step);
+    long getRpartition(int step);
 
     /**
      * Deletes this node if it has no relationships attached to it. If
