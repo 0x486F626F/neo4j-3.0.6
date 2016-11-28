@@ -143,9 +143,10 @@ public class ShortestPath implements PathFinder<Path>
             String[] split = line.split("\\s+");
             this.maxBit = Integer.parseInt(split[0]);
             this.steps = Integer.parseInt(split[1]);
-            this.neighbor = new long[this.numV][this.steps + 1];
-            this.rneighbor = new long[this.numV][this.steps + 1];
-            for (int i = 1; i < this.numV; i ++) {
+            this.numV = Integer.parseInt(split[2]);
+            this.neighbor = new long[this.numV + 1][this.steps + 1];
+            this.rneighbor = new long[this.numV + 1][this.steps + 1];
+            for (int i = 1; i <= this.numV; i ++) {
                 line = br.readLine();
                 split = line.split("\\s+");
                 for (int j = 0; j <= this.steps; j ++)
@@ -171,9 +172,9 @@ public class ShortestPath implements PathFinder<Path>
             String[] split = line.split("\\s+");
             this.numV = Integer.parseInt(split[0]);
             this.numL = Integer.parseInt(split[1]);
-            this.lm2v = new byte[this.numV][this.numL];
-            this.v2lm = new byte[this.numV][this.numL];
-            for (int i = 0; i < numV; i ++) {
+            this.lm2v = new byte[this.numV + 1][this.numL];
+            this.v2lm = new byte[this.numV + 1][this.numL];
+            for (int i = 1; i <= numV; i ++) {
                 line = br.readLine();
                 split = line.split("\\s+");
                 for (int j = 0; j < this.numL; j ++) {
@@ -187,7 +188,7 @@ public class ShortestPath implements PathFinder<Path>
                     new InputStreamReader(
                         new FileInputStream(v2lmFile)));
             line = br.readLine();
-            for (int i = 0; i < numV; i ++) {
+            for (int i = 1; i <= numV; i ++) {
                 line = br.readLine();
                 split = line.split("\\s+");
                 for (int j = 0; j < this.numL; j ++) {
