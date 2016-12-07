@@ -170,7 +170,8 @@ public class ShortestPath implements PathFinder<Path>
                 start.getId(), end.getId(),
                 this.numFetchVertex, this.numFetchEdge,
                 sharedFrozenDepth.value, endTime - startTime);
-        return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
+        return null;
+        //return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
 
     @Override
