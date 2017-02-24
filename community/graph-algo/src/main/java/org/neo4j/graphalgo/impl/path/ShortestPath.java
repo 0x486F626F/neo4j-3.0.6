@@ -274,7 +274,7 @@ public class ShortestPath implements PathFinder<Path>
         System.out.printf("%d %d %d %d %d %d %d\n", 
                 start.getId(),                  //S
                 end.getId(),                    //T
-                sharedFrozenDepth,              //D(S,T)
+                sharedFrozenDepth.value,        //D(S,T)
                 this.upperBound,                //UB(S,T)
                 endTime - startTime,            //BFS_T
                 this.numFetchVertex,            //BFS_V
