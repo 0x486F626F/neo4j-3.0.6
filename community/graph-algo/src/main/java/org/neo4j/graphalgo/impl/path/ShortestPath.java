@@ -275,10 +275,15 @@ public class ShortestPath implements PathFinder<Path>
         }
         Collection<Hit> least = hits.least();
         long endTime = System.currentTimeMillis();
-        System.out.printf("Count: %d %d %d %d %d %d\n", 
-                start.getId(), end.getId(),
-                this.numFetchVertex, this.numFetchEdge,
-                sharedFrozenDepth.value, endTime - startTime);
+        System.out.printf("%d %d %d %d %d %d %d\n", 
+                start.getId(),                  //S
+                end.getId(),                    //T
+                sharedFrozenDepth,              //D(S,T)
+                this.upperBound,                //UB(S,T)
+                endTime - startTime,            //BFS_T
+                this.numFetchVertex,            //BFS_V
+                this.numFetchEdge);             //BFS_E
+
         return null;
         //return least != null ? filterPaths(hitsToPaths( least, start, end, stopAsap )) : Collections.<Path> emptyList();
     }
